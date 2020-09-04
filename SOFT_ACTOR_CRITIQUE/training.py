@@ -4,8 +4,53 @@
 # all of the imports
 import gym
 import torch
+import random
+import numpy as np
 from torch import nn
+import torch.nn.functional as F
+from torch.distributions import Normal
+import torch.optim as optim
 
+use_cuda = torch.cuda.is_available()
+device   = torch.device("cuda" if use_cuda else "cpu")
+
+class NormalizedActions(gym.ActionWrapper):
+    def _action(self, action):
+        low = self.action_space.low
+        high = self.action_space.high
+
+        action = low + (action + 1.0) * 0.5 * (high - low)
+        action = np.clip(action, low, high)
+
+        return action
+
+    def _reverse_action(self, action):
+        low = self.action_space.low
+        high = self.action_space.high
+
+        action = 2 * (action - low) / (high - low) - 1
+        action = np.clip(action, low, high)
+        return action
+
+class ReplayBuffer:
+    def __init__(self, capacity):
+        self.capacity = capacity
+        self.buffer = []
+        self.position = 0
+
+    def push(self, state, action, reward, next_state, done):
+        if len(self.buffer) < self.capacity:
+            self.buffer.append(None)
+        self.buffer[self.position] = (state, action, reward, next_state, done)
+        self.position = (self.position + 1) % self.capacity
+
+    def sample(self, batch_size):
+        batch = random.sample(self.buffer, batch_size)
+        state, action, reward, next_state, done = map(np.stack, zip(*batch))
+        return state, action, reward, next_state, done
+
+    def __len__(self):
+        return len(self.buffer)
 
 class ValueNetwork(nn.Module):
     def __init__(self, state_dim, hidden_dim, init_w=3e-3):
@@ -166,7 +211,8 @@ soft_q_criterion2 = nn.MSELoss()
 lr = 3e-4
 
 value_optimizer = optim.Adam(value_net.parameters(), lr=lr)
-soft_q_optimizer = optim.Adam(soft_q_net.parameters(), lr=lr)
+soft_q_optimizer1 = optim.Adam(soft_q_net1.parameters(), lr=lr)
+soft_q_optimizer2 = optim.Adam(soft_q_net2.parameters(), lr=lr)
 policy_optimizer = optim.Adam(policy_net.parameters(), lr=lr)
 
 replay_buffer_size = 1000000
