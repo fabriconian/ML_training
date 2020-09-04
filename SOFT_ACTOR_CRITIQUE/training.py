@@ -186,7 +186,7 @@ def update(batch_size, gamma=0.99, soft_tau=1e-2, ):
         target_param.data.copy_(
             target_param.data * (1.0 - soft_tau) + param.data * soft_tau
         )
-
+# the initialization
 
 env = NormalizedActions(gym.make("Pendulum-v0"))
 
@@ -217,3 +217,32 @@ policy_optimizer = optim.Adam(policy_net.parameters(), lr=lr)
 
 replay_buffer_size = 1000000
 replay_buffer = ReplayBuffer(replay_buffer_size)
+
+while frame_idx < max_frames:
+    state = env.reset()
+    episode_reward = 0
+
+    for step in range(max_steps):
+        if frame_idx > 1000:
+            action = policy_net.get_action(state).detach()
+            next_state, reward, done, _ = env.step(action.numpy())
+        else:
+            action = env.action_space.sample()
+            next_state, reward, done, _ = env.step(action)
+
+        replay_buffer.push(state, action, reward, next_state, done)
+
+        state = next_state
+        episode_reward += reward
+        frame_idx += 1
+
+        if len(replay_buffer) > batch_size:
+            update(batch_size)
+
+        if frame_idx % 1000 == 0:
+            plot(frame_idx, rewards)
+
+        if done:
+            break
+
+    rewards.append(episode_reward)
