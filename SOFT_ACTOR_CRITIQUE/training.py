@@ -218,6 +218,14 @@ policy_optimizer = optim.Adam(policy_net.parameters(), lr=lr)
 replay_buffer_size = 1000000
 replay_buffer = ReplayBuffer(replay_buffer_size)
 
+
+max_frames  = 40000
+max_steps   = 500
+frame_idx   = 0
+rewards     = []
+batch_size  = 128
+
+
 while frame_idx < max_frames:
     state = env.reset()
     episode_reward = 0
