@@ -52,6 +52,7 @@ class ReplayBuffer:
     def __len__(self):
         return len(self.buffer)
 
+# that simple...
 class ValueNetwork(nn.Module):
     def __init__(self, state_dim, hidden_dim, init_w=3e-3):
         super(ValueNetwork, self).__init__()
@@ -60,6 +61,7 @@ class ValueNetwork(nn.Module):
         self.linear2 = nn.Linear(hidden_dim, hidden_dim)
         self.linear3 = nn.Linear(hidden_dim, 1)
 
+        # because for the backprop only their values will eventually matter
         self.linear3.weight.data.uniform_(-init_w, init_w)
         self.linear3.bias.data.uniform_(-init_w, init_w)
 
@@ -68,7 +70,6 @@ class ValueNetwork(nn.Module):
         x = F.relu(self.linear2(x))
         x = self.linear3(x)
         return x
-
 
 class SoftQNetwork(nn.Module):
     def __init__(self, num_inputs, num_actions, hidden_size, init_w=3e-3):
@@ -88,9 +89,10 @@ class SoftQNetwork(nn.Module):
         x = self.linear3(x)
         return x
 
-
+# that the place where the stuff is getting interesting...
 class PolicyNetwork(nn.Module):
-    def __init__(self, num_inputs, num_actions, hidden_size, init_w=3e-3, log_std_min=-20, log_std_max=2):
+    def __init__(self, num_inputs, num_actions, hidden_size,
+                 init_w=3e-3, log_std_min=-20, log_std_max=2):
         super(PolicyNetwork, self).__init__()
 
         self.log_std_min = log_std_min
@@ -223,8 +225,20 @@ max_frames  = 40000
 max_steps   = 500
 frame_idx   = 0
 rewards     = []
+frame_indices = []
 batch_size  = 128
 
+#%%
+import matplotlib.pyplot as plt
+from IPython.display import clear_output
+
+def plot(frame_idx, rewards):
+    clear_output(True)
+    plt.figure(figsize=(20,5))
+    plt.subplot(131)
+    plt.title('frame %s. reward: %s' % (frame_idx, rewards[-1]))
+    plt.plot(rewards)
+    plt.show()
 
 while frame_idx < max_frames:
     state = env.reset()
@@ -247,10 +261,12 @@ while frame_idx < max_frames:
         if len(replay_buffer) > batch_size:
             update(batch_size)
 
-        if frame_idx % 1000 == 0:
+        if frame_idx % 20000 == 0:
             plot(frame_idx, rewards)
+
 
         if done:
             break
 
     rewards.append(episode_reward)
+    # frame_indices.append(frame_idx)
